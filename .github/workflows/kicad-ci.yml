@@ -1,0 +1,61 @@
+
+name: KiCad Design Validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install KiCad
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y kicad
+
+      - name: Run schematic ERC
+        shell: bash
+        run: |
+          mkdir -p reports
+          find . -name '*.kicad_sch' -not -path '*/\*-backups/*' \
+            -print -quit | grep -q . || {
+              echo "No schematic found"
+              exit 1
+            }
+          find . -name '*.kicad_sch' -not -path '*/\*-backups/*' \
+            -print -quit | while IFS= read -r sch; do
+              kicad-cli sch erc "$sch" \
+                -o reports/erc.rpt \
+                --exit-code-violations
+            done
+
+      - name: Run PCB DRC
+        shell: bash
+        run: |
+          find . -name '*.kicad_pcb' \
+            -not -path '*/\*-backups/*' \
+            -print -quit | grep -q . || {
+              echo "No PCB found"
+              exit 1
+            }
+          find . -name '*.kicad_pcb' \
+            -not -path '*/\*-backups/*' \
+            -print -quit | while IFS= read -r pcb; do
+              kicad-cli pcb drc "$pcb" \
+                -o reports/drc.rpt \
+                --exit-code-violations
+            done
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicad-validation-reports
+          path: reports/
+          if-no-files-found: ignore
