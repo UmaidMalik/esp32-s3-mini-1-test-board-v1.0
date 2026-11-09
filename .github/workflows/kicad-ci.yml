@@ -14,10 +14,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install KiCad
+      - name: Install KiCad 9
         run: |
+          sudo add-apt-repository --yes ppa:kicad/kicad-9.0-releases
           sudo apt-get update
           sudo apt-get install -y kicad
+          kicad-cli version
 
       - name: Run schematic ERC
         shell: bash
